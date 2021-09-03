@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: git-clone
+  name: git-clone-copy
   labels:
     app.kubernetes.io/version: "0.4"
   annotations:
@@ -22,25 +22,25 @@ spec:
   workspaces:
     - name: source
       description: The git repo will be cloned onto the volume backing this Workspace.
-    - name: ssh-directory
-      optional: true
-      description: |
-        A .ssh directory with private key, known_hosts, config, etc. Copied to
-        the user's home before git commands are executed. Used to authenticate
-        with the git remote when performing the clone. Binding a Secret to this
-        Workspace is strongly recommended over other volume types.
-    - name: basic-auth
-      optional: true
-      description: |
-        A Workspace containing a .gitconfig and .git-credentials file. These
-        will be copied to the user's home before any git commands are run. Any
-        other files in this Workspace are ignored. It is strongly recommended
-        to use ssh-directory over basic-auth whenever possible and to bind a
-        Secret to this Workspace over other volume types.
+    # - name: ssh-directory
+    #   optional: true
+    #   description: |
+    #     A .ssh directory with private key, known_hosts, config, etc. Copied to
+    #     the user's home before git commands are executed. Used to authenticate
+    #     with the git remote when performing the clone. Binding a Secret to this
+    #     Workspace is strongly recommended over other volume types.
+    # - name: basic-auth
+    #   optional: true
+    #   description: |
+    #     A Workspace containing a .gitconfig and .git-credentials file. These
+    #     will be copied to the user's home before any git commands are run. Any
+    #     other files in this Workspace are ignored. It is strongly recommended
+    #     to use ssh-directory over basic-auth whenever possible and to bind a
+    #     Secret to this Workspace over other volume types.
   params:
-    - name: url
-      description: Repository URL to clone from.
-      type: string
+    # - name: url
+    #   description: Repository URL to clone from.
+    #   type: string
     - name: revision
       description: Revision to checkout. (branch, tag, sha, ref, etc...)
       type: string
@@ -103,6 +103,11 @@ spec:
       description: The precise commit SHA that was fetched by this Task.
     - name: url
       description: The precise URL that was fetched by this Task.
+  resources:
+    inputs:
+      - name: git-source
+        type: git
+        optional: true
   steps:
     - name: clone
       image: "$(params.gitInitImage)"
@@ -110,8 +115,9 @@ spec:
       - name: HOME
         value: "$(params.userHome)"
       - name: PARAM_URL
-        value: $(params.url)
+        value: $(resources.inputs.git-source.url)
       - name: PARAM_REVISION
+        # value: $(resources.inputs.git-source.revision)
         value: $(params.revision)
       - name: PARAM_REFSPEC
         value: $(params.refspec)

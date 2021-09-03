@@ -2,41 +2,39 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: npm
-  labels:
-    app.kubernetes.io/version: "0.1"
-  annotations:
-    tekton.dev/pipelines.minVersion: "0.17.0"
-    tekton.dev/tags: build-tool
 spec:
-  description: >-
-    This task can be used to run npm goals on a project.
-
-    This task can be used to run npm goals on a project
-    where package.json is present and has some pre-defined
-    npm scripts.
   workspaces:
     - name: source
+      description: shared pvc for providing access to other tasks input/output
   params:
-    - name: PATH_CONTEXT
+    - name: CONTEXT_DIR
       type: string
       default: "."
       description: The path where package.json of the project is defined.
-    - name: ARGS
-      type: array
-      default: ["version"]
-      description: The npm goals you want to run.
-    - name: IMAGE
+    - name: IMAGE_NPM
       type: string
-      default: "docker.io/library/node:12-alpine@sha256:12048cdfd75d944df35f3144132d9bdeee78015fbd6df765edad1be46599b110"
+      default: node:14.17.3-slim
       description: The node image you want to use.
+    - name: REGISTRY_NPM
+      default: https://alm-npmjs.misys.global.ad/nexus/repository/npm_group/
+      # default: https://nexus.finastra.com/nexus/repository/npm_group/
+      # default: http://nexus.l21d31708530003.local/repository/lab-npm/
+      description: npm registry used for downloading prereqs
   steps:
-    - name: npm-run
-      image: $(params.IMAGE)
-      command:
-        - "npm"
-      args:
-        - $(params.ARGS)
-      workingDir: $(workspaces.source.path)/$(params.PATH_CONTEXT)
+    - name: npm-config-install
+      image: $(params.IMAGE_NPM)
+      workingDir: $(workspaces.source.path)/$(params.CONTEXT_DIR)
+      script: |
+        npm config --global set prefix $(workspaces.source.path)/$(params.CONTEXT_DIR)
+        npm config --global set strict-ssl false
+        npm config --global set registry $(params.REGISTRY_NPM)
+        npm --registry=$(params.REGISTRY_NPM) install
+        npm fund
       env:
         - name: CI
           value: "true"
+    - name: npm-build
+      image: $(params.IMAGE_NPM)
+      workingDir: $(workspaces.source.path)/$(params.CONTEXT_DIR)
+      script: |
+        npm run build
